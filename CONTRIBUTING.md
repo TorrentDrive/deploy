@@ -1,16 +1,16 @@
-# Contributing to TorrentClou
+# Contributing to TorrentDrive
 
-Thank you for your interest in contributing to TorrentClou. This document provides guidelines for contributing to the deployment repository and the overall project.
+Thank you for your interest in contributing to TorrentDrive. This document provides guidelines for contributing to the deployment repository and the overall project.
 
 ## Repository Structure
 
-TorrentClou is split across three repositories:
+TorrentDrive is split across three repositories:
 
 | Repository | Purpose |
 |------------|---------|
-| [TorrenClou/backend](https://github.com/TorrenClou/backend) | .NET 9.0 API and background workers |
-| [TorrenClou/frontend](https://github.com/TorrenClou/frontend) | Next.js 15 web application |
-| [TorrenClou/deploy](https://github.com/TorrenClou/deploy) | Dockerfile, CI/CD, deployment scripts (this repo) |
+| [TorrentDrive/backend](https://github.com/TorrentDrive/backend) | .NET 9.0 API and background workers |
+| [TorrentDrive/frontend](https://github.com/TorrentDrive/frontend) | Next.js 15 web application |
+| [TorrentDrive/deploy](https://github.com/TorrentDrive/deploy) | Dockerfile, CI/CD, deployment scripts (this repo) |
 
 ## How to Contribute
 
@@ -18,7 +18,7 @@ TorrentClou is split across three repositories:
 
 - Use the **Issues** tab on the relevant repository
 - Include steps to reproduce, expected behavior, and actual behavior
-- For Docker/deployment issues, include `docker logs torrencloud` output
+- For Docker/deployment issues, include `docker logs torrentdrive` output
 
 ### Pull Requests
 
@@ -45,7 +45,7 @@ TorrentClou is split across three repositories:
 ### Backend
 
 ```bash
-git clone https://github.com/TorrenClou/backend.git
+git clone https://github.com/TorrentDrive/backend.git
 cd backend
 cp .env.example .env
 docker-compose up -d
@@ -56,7 +56,7 @@ Requires: .NET 9.0 SDK, Docker
 ### Frontend
 
 ```bash
-git clone https://github.com/TorrenClou/frontend.git
+git clone https://github.com/TorrentDrive/frontend.git
 cd frontend
 cp .env.example .env.local
 yarn install
@@ -70,15 +70,15 @@ Requires: Node.js 20+, yarn
 Changes to the Dockerfile, entrypoint, or supervisord config should be tested by building the image locally:
 
 ```bash
-git clone https://github.com/TorrenClou/deploy.git
+git clone https://github.com/TorrentDrive/deploy.git
 cd deploy
 
 # Clone source repos for build context
-git clone https://github.com/TorrenClou/backend.git
-git clone https://github.com/TorrenClou/frontend.git
+git clone https://github.com/TorrentDrive/backend.git
+git clone https://github.com/TorrentDrive/frontend.git
 
 # Build locally
-docker build -t torrencloud-test .
+docker build -t torrentdrive-test .
 ```
 
 ## Build & Release Process

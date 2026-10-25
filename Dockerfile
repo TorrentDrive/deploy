@@ -1,5 +1,5 @@
 # ============================================================
-# TorrenClou All-in-One Image
+# TorrentDrive All-in-One Image
 # Frontend + API + Workers + PostgreSQL 15 + Redis 7
 # + Prometheus + Grafana
 # ============================================================
@@ -39,34 +39,34 @@ FROM mcr.microsoft.com/dotnet/sdk:9.0 AS backend-build
 WORKDIR /src
 
 # Copy solution and project files for dependency restoration
-COPY backend/TorrenClou.sln .
-COPY backend/TorrenClou.Core/TorrenClou.Core.csproj TorrenClou.Core/
-COPY backend/TorrenClou.Application/TorrenClou.Application.csproj TorrenClou.Application/
-COPY backend/TorrenClou.Infrastructure/TorrenClou.Infrastructure.csproj TorrenClou.Infrastructure/
-COPY backend/TorrenClou.API/TorrenClou.API.csproj TorrenClou.API/
-COPY backend/TorrenClou.Worker/TorrenClou.Worker.csproj TorrenClou.Worker/
-COPY backend/TorrenClou.GoogleDrive.Worker/TorrenClou.GoogleDrive.Worker.csproj TorrenClou.GoogleDrive.Worker/
-COPY backend/TorrenClou.S3.Worker/TorrenClou.S3.Worker.csproj TorrenClou.S3.Worker/
+COPY backend/TorrentDrive.sln .
+COPY backend/TorrentDrive.Core/TorrentDrive.Core.csproj TorrentDrive.Core/
+COPY backend/TorrentDrive.Application/TorrentDrive.Application.csproj TorrentDrive.Application/
+COPY backend/TorrentDrive.Infrastructure/TorrentDrive.Infrastructure.csproj TorrentDrive.Infrastructure/
+COPY backend/TorrentDrive.API/TorrentDrive.API.csproj TorrentDrive.API/
+COPY backend/TorrentDrive.Worker/TorrentDrive.Worker.csproj TorrentDrive.Worker/
+COPY backend/TorrentDrive.GoogleDrive.Worker/TorrentDrive.GoogleDrive.Worker.csproj TorrentDrive.GoogleDrive.Worker/
+COPY backend/TorrentDrive.S3.Worker/TorrentDrive.S3.Worker.csproj TorrentDrive.S3.Worker/
 
-RUN dotnet restore TorrenClou.sln
+RUN dotnet restore TorrentDrive.sln
 
 # Copy all source code
-COPY backend/TorrenClou.Core/ TorrenClou.Core/
-COPY backend/TorrenClou.Application/ TorrenClou.Application/
-COPY backend/TorrenClou.Infrastructure/ TorrenClou.Infrastructure/
-COPY backend/TorrenClou.API/ TorrenClou.API/
-COPY backend/TorrenClou.Worker/ TorrenClou.Worker/
-COPY backend/TorrenClou.GoogleDrive.Worker/ TorrenClou.GoogleDrive.Worker/
-COPY backend/TorrenClou.S3.Worker/ TorrenClou.S3.Worker/
+COPY backend/TorrentDrive.Core/ TorrentDrive.Core/
+COPY backend/TorrentDrive.Application/ TorrentDrive.Application/
+COPY backend/TorrentDrive.Infrastructure/ TorrentDrive.Infrastructure/
+COPY backend/TorrentDrive.API/ TorrentDrive.API/
+COPY backend/TorrentDrive.Worker/ TorrentDrive.Worker/
+COPY backend/TorrentDrive.GoogleDrive.Worker/ TorrentDrive.GoogleDrive.Worker/
+COPY backend/TorrentDrive.S3.Worker/ TorrentDrive.S3.Worker/
 
 # Publish each project to its own directory
-RUN dotnet publish TorrenClou.API/TorrenClou.API.csproj \
+RUN dotnet publish TorrentDrive.API/TorrentDrive.API.csproj \
       -c Release --no-restore -o /publish/api /p:UseAppHost=false
-RUN dotnet publish TorrenClou.Worker/TorrenClou.Worker.csproj \
+RUN dotnet publish TorrentDrive.Worker/TorrentDrive.Worker.csproj \
       -c Release --no-restore -o /publish/torrent-worker /p:UseAppHost=false
-RUN dotnet publish TorrenClou.GoogleDrive.Worker/TorrenClou.GoogleDrive.Worker.csproj \
+RUN dotnet publish TorrentDrive.GoogleDrive.Worker/TorrentDrive.GoogleDrive.Worker.csproj \
       -c Release --no-restore -o /publish/gdrive-worker /p:UseAppHost=false
-RUN dotnet publish TorrenClou.S3.Worker/TorrenClou.S3.Worker.csproj \
+RUN dotnet publish TorrentDrive.S3.Worker/TorrentDrive.S3.Worker.csproj \
       -c Release --no-restore -o /publish/s3-worker /p:UseAppHost=false
 
 # ---- Stage 3: Runtime ----
@@ -148,7 +148,7 @@ COPY config/grafana/provisioning/ /etc/grafana/provisioning/
 COPY backend/observability/grafana/dashboards/ /var/lib/grafana/dashboards/
 
 # Copy configuration files
-COPY config/supervisord.conf /etc/supervisor/conf.d/torrencloud.conf
+COPY config/supervisord.conf /etc/supervisor/conf.d/torrentdrive.conf
 COPY entrypoint.sh /entrypoint.sh
 COPY wait-for-db.sh /app/wait-for-db.sh
 RUN chmod +x /entrypoint.sh /app/wait-for-db.sh

@@ -13,11 +13,11 @@ published Template is the follow-up.
 
 ## Deploying
 
-1. **New Project → Deploy from GitHub repo →** `TorrenClou/deploy`.
+1. **New Project → Deploy from GitHub repo →** `TorrentDrive/deploy`.
 2. Railway builds the all-in-one `Dockerfile`. That build is slow — it compiles
    the .NET backend and the Next.js frontend from source. Deploying the
    prebuilt image instead is faster: **New → Docker Image →**
-   `ghcr.io/torrenclou/torrentclou:latest`.
+   `ghcr.io/torrentdrive/torrentdrive:latest`.
 3. **Add a Volume**, mount path `/data`, at least 20 GB.
 4. **Settings → Networking → Generate Domain**, then set the port to `47100`.
 

@@ -8,7 +8,7 @@
 #
 # This shim will be removed in a future release. Use install.sh directly:
 #
-#   curl -fsSL https://raw.githubusercontent.com/TorrenClou/deploy/main/install.sh | bash
+#   curl -fsSL https://raw.githubusercontent.com/TorrentDrive/deploy/main/install.sh | bash
 #
 set -euo pipefail
 
@@ -27,5 +27,5 @@ elif [ -f "$SCRIPT_DIR/install.sh" ]; then
     exec bash "$SCRIPT_DIR/install.sh" "$@"
 else
     echo "  install.sh is not next to this script; fetching it." >&2
-    exec bash -c 'curl -fsSL https://raw.githubusercontent.com/TorrenClou/deploy/main/install.sh | bash'
+    exec bash -c 'curl -fsSL https://raw.githubusercontent.com/TorrentDrive/deploy/main/install.sh | bash'
 fi

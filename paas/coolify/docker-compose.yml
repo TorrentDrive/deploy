@@ -1,25 +1,26 @@
-# TorrenClou on Coolify.
-#
-# Add as a "Docker Compose" resource pointing at this file. Coolify's magic
-# variables generate the domain and inject it, so nothing needs configuring by
-# hand.
+# documentation: https://tc.gitnasr.com/docs/paas/coolify
+# slogan: Self-hosted torrent-to-cloud transfer platform for Google Drive and S3.
+# tags: torrent,cloud,google-drive,s3,self-hosted,downloader
+# logo: https://raw.githubusercontent.com/TorrentDrive/website/main/public/logo.svg
+# port: 47100
 
 services:
-  torrenclou:
-    image: ghcr.io/torrenclou/torrentclou:${TORRENCLOU_VERSION:-latest}
+  torrentdrive:
+    image: ghcr.io/torrentdrive/torrentdrive:${TORRENTDRIVE_VERSION:-latest}
     restart: unless-stopped
 
     environment:
-      # Coolify replaces SERVICE_FQDN_* with the generated domain and creates the
-      # proxy route to the port named in it. 47100 is the web interface.
-      - SERVICE_FQDN_TORRENCLOU_47100
-      - PUBLIC_FRONTEND_URL=${SERVICE_FQDN_TORRENCLOU}
-      - NEXTAUTH_URL=${SERVICE_FQDN_TORRENCLOU}
+      # Coolify magic variable: generates the full URL (with https:// scheme)
+      # and routes the reverse proxy to container port 47100.
+      - SERVICE_FQDN_TORRENTDRIVE_47100
+      - PUBLIC_FRONTEND_URL=${SERVICE_URL_TORRENTDRIVE}
+      - NEXTAUTH_URL=${SERVICE_URL_TORRENTDRIVE}
+      - TORRENT_REQUIRE_ENCRYPTION=${TORRENT_REQUIRE_ENCRYPTION:-false}
 
     volumes:
-      - torrencloud-pgdata:/data/postgres
-      - torrencloud-redis:/data/redis
-      - torrencloud-downloads:/data/downloads
+      - torrentdrive-pgdata:/data/postgres
+      - torrentdrive-redis:/data/redis
+      - torrentdrive-downloads:/data/downloads
 
     healthcheck:
       test: ["CMD-SHELL", "curl -fsS http://localhost:47200/api/health/ready || exit 1"]
@@ -29,6 +30,6 @@ services:
       start_period: 120s
 
 volumes:
-  torrencloud-pgdata:
-  torrencloud-redis:
-  torrencloud-downloads:
+  torrentdrive-pgdata:
+  torrentdrive-redis:
+  torrentdrive-downloads:

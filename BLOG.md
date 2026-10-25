@@ -1,4 +1,4 @@
-# Building TorrentClou: A Full-Stack Cloud Torrent Platform in a Single Docker Image
+# Building TorrentDrive: A Full-Stack Cloud Torrent Platform in a Single Docker Image
 
 ## The Problem
 
@@ -6,11 +6,11 @@ Managing torrent downloads on remote servers is painful. You SSH in, run a CLI c
 
 I wanted something different: a single, self-hosted platform where I could upload a torrent, watch it download, and have it automatically sync to my Google Drive or S3 — all from a clean web UI. And I wanted anyone to be able to run it with one command.
 
-That's TorrentClou.
+That's TorrentDrive.
 
 ## What It Does
 
-TorrentClou is a self-hosted web application that handles the entire torrent-to-cloud pipeline:
+TorrentDrive is a self-hosted web application that handles the entire torrent-to-cloud pipeline:
 
 - **Upload** a `.torrent` file or paste a magnet link from a modern web interface
 - **Monitor** download progress in real-time on a dashboard
@@ -44,7 +44,7 @@ This separation means the business logic has zero dependencies on frameworks or 
 
 ### Background Processing: Distributed Workers
 
-Torrent downloads and cloud uploads are long-running operations that don't belong in an API request-response cycle. TorrentClou uses **Hangfire** for background job processing with three dedicated worker processes:
+Torrent downloads and cloud uploads are long-running operations that don't belong in an API request-response cycle. TorrentDrive uses **Hangfire** for background job processing with three dedicated worker processes:
 
 1. **Torrent Worker** — Handles the actual torrent downloads
 2. **Google Drive Worker** — Syncs completed files to Google Drive via OAuth
@@ -60,7 +60,7 @@ Each worker runs as an independent .NET process, connected to the same PostgreSQ
 
 The hardest part of this project wasn't the application code — it was the deployment story.
 
-Most Docker projects use docker-compose with separate containers for each service. That's the "right" way, but it's also a barrier for users who just want to try something out. I wanted TorrentClou to be as easy to run as `docker run`.
+Most Docker projects use docker-compose with separate containers for each service. That's the "right" way, but it's also a barrier for users who just want to try something out. I wanted TorrentDrive to be as easy to run as `docker run`.
 
 ### Multi-Stage Dockerfile
 
@@ -84,7 +84,7 @@ The container's entrypoint script handles first-run setup automatically: initial
 
 ## CI/CD: Cross-Repository Automation
 
-TorrentClou is split across three GitHub repositories — frontend, backend, and deployment. The CI/CD pipeline uses **GitHub Actions** with a cross-repository dispatch pattern:
+TorrentDrive is split across three GitHub repositories — frontend, backend, and deployment. The CI/CD pipeline uses **GitHub Actions** with a cross-repository dispatch pattern:
 
 When code is merged to `main` in either the frontend or backend repo, a lightweight workflow sends a `repository_dispatch` event to the deployment repo. The deployment repo's workflow checks out both source repos, builds the combined Docker image, and pushes it to the **GitHub Container Registry**.
 
@@ -108,7 +108,7 @@ Isolation. A memory leak in the torrent download code shouldn't take down the AP
 
 ## What I Learned
 
-Building TorrentClou reinforced a few lessons:
+Building TorrentDrive reinforced a few lessons:
 
 - **Deployment is a feature.** The best application in the world doesn't matter if people can't run it. Investing in the Docker image and run scripts paid off more than any individual feature.
 
@@ -118,10 +118,10 @@ Building TorrentClou reinforced a few lessons:
 
 ## Try It
 
-TorrentClou is open source and available on GitHub. Running it takes one command:
+TorrentDrive is open source and available on GitHub. Running it takes one command:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/TorrenClou/deploy/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/TorrentDrive/deploy/main/install.sh | bash
 ```
 
 No `.env` to edit — the container generates its own secrets and everything else is set up
@@ -131,4 +131,4 @@ in the browser. Frontend at `http://localhost:47100`, API at `http://localhost:4
 
 **Tech Stack Summary:** Next.js 15 | React 18 | TypeScript | Tailwind CSS | .NET 9.0 | ASP.NET Core | Entity Framework Core | PostgreSQL 15 | Redis 7 | Hangfire | Docker | GitHub Actions | supervisord
 
-**GitHub:** [github.com/TorrenClou](https://github.com/TorrenClou)
+**GitHub:** [github.com/TorrentDrive](https://github.com/TorrentDrive)

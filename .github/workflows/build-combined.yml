@@ -1,4 +1,4 @@
-name: Build Combined TorrenClou Image
+name: Build Combined TorrentDrive Image
 
 on:
   # Pushes to this repo built nothing at all. The installer, entrypoint,
@@ -64,7 +64,7 @@ jobs:
       - name: Checkout backend
         uses: actions/checkout@v4
         with:
-          repository: TorrenClou/backend
+          repository: TorrentDrive/backend
           ref: ${{ steps.refs.outputs.backend_ref }}
           path: backend
           token: ${{ secrets.DEPLOY_PAT }}
@@ -72,7 +72,7 @@ jobs:
       - name: Checkout frontend
         uses: actions/checkout@v4
         with:
-          repository: TorrenClou/frontend
+          repository: TorrentDrive/frontend
           ref: ${{ steps.refs.outputs.frontend_ref }}
           path: frontend
           token: ${{ secrets.DEPLOY_PAT }}
@@ -87,7 +87,7 @@ jobs:
           file: ./Dockerfile
           push: false
           load: true
-          tags: torrenclou-smoke:test
+          tags: torrentdrive-smoke:test
           cache-from: type=gha,scope=amd64
           cache-to: type=gha,mode=max,scope=amd64
           platforms: linux/amd64
@@ -129,7 +129,7 @@ jobs:
       - name: Set image name (lowercase)
         id: image
         run: |
-          echo "name=ghcr.io/$(echo '${{ github.repository_owner }}' | tr '[:upper:]' '[:lower:]')/torrentclou" >> "$GITHUB_OUTPUT"
+          echo "name=ghcr.io/$(echo '${{ github.repository_owner }}' | tr '[:upper:]' '[:lower:]')/torrentdrive" >> "$GITHUB_OUTPUT"
 
       - name: Determine refs
         id: refs
@@ -157,7 +157,7 @@ jobs:
       - name: Checkout backend
         uses: actions/checkout@v4
         with:
-          repository: TorrenClou/backend
+          repository: TorrentDrive/backend
           ref: ${{ steps.refs.outputs.backend_ref }}
           path: backend
           token: ${{ secrets.DEPLOY_PAT }}
@@ -165,7 +165,7 @@ jobs:
       - name: Checkout frontend
         uses: actions/checkout@v4
         with:
-          repository: TorrenClou/frontend
+          repository: TorrentDrive/frontend
           ref: ${{ steps.refs.outputs.frontend_ref }}
           path: frontend
           token: ${{ secrets.DEPLOY_PAT }}
@@ -231,7 +231,7 @@ jobs:
       - name: Set image name (lowercase)
         id: image
         run: |
-          echo "name=ghcr.io/$(echo '${{ github.repository_owner }}' | tr '[:upper:]' '[:lower:]')/torrentclou" >> "$GITHUB_OUTPUT"
+          echo "name=ghcr.io/$(echo '${{ github.repository_owner }}' | tr '[:upper:]' '[:lower:]')/torrentdrive" >> "$GITHUB_OUTPUT"
 
       - name: Generate version tag
         id: version

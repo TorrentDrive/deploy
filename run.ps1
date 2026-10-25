@@ -7,7 +7,7 @@
 #
 # This shim will be removed in a future release. Use install.ps1 directly:
 #
-#   irm https://raw.githubusercontent.com/TorrenClou/deploy/main/install.ps1 | iex
+#   irm https://raw.githubusercontent.com/TorrentDrive/deploy/main/install.ps1 | iex
 #
 $ErrorActionPreference = "Stop"
 
@@ -22,5 +22,5 @@ if (Test-Path $installer) {
     & $installer @args
 } else {
     Write-Host "  install.ps1 is not next to this script; fetching it."
-    Invoke-RestMethod https://raw.githubusercontent.com/TorrenClou/deploy/main/install.ps1 | Invoke-Expression
+    Invoke-RestMethod https://raw.githubusercontent.com/TorrentDrive/deploy/main/install.ps1 | Invoke-Expression
 }

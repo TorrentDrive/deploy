@@ -1,9 +1,9 @@
-# TorrenClou — build from source.
+# TorrentDrive — build from source.
 #
 # For working on the all-in-one image itself. Expects the three repositories
 # checked out as siblings:
 #
-#   TorrenClou/
+#   TorrentDrive/
 #   ├── backend/
 #   ├── frontend/
 #   └── deploy/     <- run from here
@@ -14,16 +14,16 @@
 # why the context is the parent directory rather than this repo.
 #
 # This replaces docker-compose.prod.yml, which pointed its build contexts at
-# TorrenClouBackend/ and ../TorrenClouFrontend — directories that do not exist
+# TorrentDriveBackend/ and ../TorrentDriveFrontend — directories that do not exist
 # under those names in any checkout. That file had never successfully built.
 
 services:
-  torrenclou:
+  torrentdrive:
     build:
       context: ..
       dockerfile: deploy/Dockerfile
-    image: torrenclou-local:dev
-    container_name: torrenclou-dev
+    image: torrentdrive-local:dev
+    container_name: torrentdrive-dev
     restart: unless-stopped
 
     ports:

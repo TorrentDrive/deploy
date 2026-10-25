@@ -46,7 +46,7 @@ jobs:
           else
             component="${{ github.event.inputs.component }}"
             sha="${{ github.event.inputs.sha }}"
-            repo="TorrenClou/${component}"
+            repo="TorrentDrive/${component}"
           fi
 
           case "$component" in

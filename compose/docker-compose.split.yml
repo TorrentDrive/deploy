@@ -1,4 +1,4 @@
-# TorrenClou — split services.
+# TorrentDrive — split services.
 #
 # Runs the web app, API and three workers as separate containers against
 # PostgreSQL and Redis you provide. Use this when you want managed data stores,
@@ -18,11 +18,11 @@
 
 x-backend-env: &backend-env
   ConnectionStrings__DefaultConnection: >-
-    Host=${POSTGRES_HOST:-postgres};Port=${POSTGRES_PORT:-5432};Database=${POSTGRES_DB:-torrenclo};Username=${POSTGRES_USER:-torrenclo_user};Password=${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+    Host=${POSTGRES_HOST:-postgres};Port=${POSTGRES_PORT:-5432};Database=${POSTGRES_DB:-torrentdrive};Username=${POSTGRES_USER:-torrentdrive_user};Password=${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
   Redis__ConnectionString: ${REDIS_HOST:-redis}:${REDIS_PORT:-6379}
   Jwt__Key: ${JWT_SECRET:?JWT_SECRET is required}
-  Jwt__Issuer: ${JWT_ISSUER:-TorrenClou_API}
-  Jwt__Audience: ${JWT_AUDIENCE:-TorrenClou_Client}
+  Jwt__Issuer: ${JWT_ISSUER:-TorrentDrive_API}
+  Jwt__Audience: ${JWT_AUDIENCE:-TorrentDrive_Client}
   TORRENT_DOWNLOAD_PATH: /data/downloads
   ASPNETCORE_ENVIRONMENT: Production
 
@@ -31,13 +31,13 @@ services:
     image: postgres:15-alpine
     restart: unless-stopped
     environment:
-      POSTGRES_DB: ${POSTGRES_DB:-torrenclo}
-      POSTGRES_USER: ${POSTGRES_USER:-torrenclo_user}
+      POSTGRES_DB: ${POSTGRES_DB:-torrentdrive}
+      POSTGRES_USER: ${POSTGRES_USER:-torrentdrive_user}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
     volumes:
       - postgres-data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-torrenclo_user}"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-torrentdrive_user}"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -57,7 +57,7 @@ services:
     profiles: ["bundled-db"]
 
   api:
-    image: ghcr.io/torrenclou/backend/api:${TORRENCLOU_VERSION:-latest}
+    image: ghcr.io/torrentdrive/backend/api:${TORRENTDRIVE_VERSION:-latest}
     restart: unless-stopped
     environment:
       <<: *backend-env
@@ -74,7 +74,7 @@ services:
       start_period: 90s
 
   web:
-    image: ghcr.io/torrenclou/frontend/web:${TORRENCLOU_VERSION:-latest}
+    image: ghcr.io/torrentdrive/frontend/web:${TORRENTDRIVE_VERSION:-latest}
     restart: unless-stopped
     environment:
       # Resolved per request by the frontend's proxy route, so one image works
@@ -89,7 +89,7 @@ services:
         condition: service_healthy
 
   torrent-worker:
-    image: ghcr.io/torrenclou/backend/worker:${TORRENCLOU_VERSION:-latest}
+    image: ghcr.io/torrentdrive/backend/worker:${TORRENTDRIVE_VERSION:-latest}
     restart: unless-stopped
     environment: *backend-env
     volumes:
@@ -99,7 +99,7 @@ services:
         condition: service_healthy
 
   gdrive-worker:
-    image: ghcr.io/torrenclou/backend/gdrive-worker:${TORRENCLOU_VERSION:-latest}
+    image: ghcr.io/torrentdrive/backend/gdrive-worker:${TORRENTDRIVE_VERSION:-latest}
     restart: unless-stopped
     environment: *backend-env
     volumes:
@@ -109,7 +109,7 @@ services:
         condition: service_healthy
 
   s3-worker:
-    image: ghcr.io/torrenclou/backend/s3-worker:${TORRENCLOU_VERSION:-latest}
+    image: ghcr.io/torrentdrive/backend/s3-worker:${TORRENTDRIVE_VERSION:-latest}
     restart: unless-stopped
     environment: *backend-env
     volumes:

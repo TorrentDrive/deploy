@@ -11,7 +11,7 @@
 #
 set -uo pipefail
 
-IMAGE="${IMAGE:-torrenclou-smoke:test}"
+IMAGE="${IMAGE:-torrentdrive-smoke:test}"
 NAME="${NAME:-smoke}"
 TIMEOUT_SECONDS="${TIMEOUT_SECONDS:-180}"
 
