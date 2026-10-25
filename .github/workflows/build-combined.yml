@@ -59,31 +59,22 @@ jobs:
           frontend_sha=$(jq -r '.frontend.sha' components.lock.json)
           frontend_ref=$(jq -r '.frontend.ref' components.lock.json)
 
+          resolve_latest() {
+            local repo="$1"
+            local sha ref
+            sha=$(gh api "repos/${repo}/commits/main" --jq .sha 2>/dev/null || true)
+            ref=$(gh api "repos/${repo}/tags" --jq "[.[] | select(.commit.sha == \"${sha}\")] | .[0].name // empty" 2>/dev/null || true)
+            [ -z "$ref" ] && ref="main"
+            echo "${sha}:${ref}"
+          }
+
           if [ "${{ github.event_name }}" = "repository_dispatch" ]; then
-            repo="${{ github.event.client_payload.repository }}"
-            sha="${{ github.event.client_payload.sha }}"
-            ref="${{ github.event.client_payload.ref }}"
-            component="${repo##*/}"
-
-            if [ -z "$ref" ]; then
-              ref=$(gh api "repos/${repo}/tags" --jq \
-                "[.[] | select(.commit.sha == \"${sha}\")] | .[0].name // empty" 2>/dev/null || true)
-              [ -z "$ref" ] && ref="main"
-            fi
-
-            case "$component" in
-              backend)
-                backend_sha="$sha"
-                backend_ref="$ref"
-                ;;
-              frontend)
-                frontend_sha="$sha"
-                frontend_ref="$ref"
-                ;;
-              *)
-                echo "::warning::Unknown component '${component}' in repository_dispatch payload; using components.lock.json"
-                ;;
-            esac
+            # Always sync both components to their latest main/release commits so
+            # concurrent dispatches from backend and frontend never drop an update.
+            b_info=$(resolve_latest "TorrentDrive/backend")
+            f_info=$(resolve_latest "TorrentDrive/frontend")
+            [ -n "${b_info%%:*}" ] && backend_sha="${b_info%%:*}" && backend_ref="${b_info#*:}"
+            [ -n "${f_info%%:*}" ] && frontend_sha="${f_info%%:*}" && frontend_ref="${f_info#*:}"
           elif [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             input_backend="${{ github.event.inputs.backend_ref }}"
             input_frontend="${{ github.event.inputs.frontend_ref }}"

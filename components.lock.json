@@ -1,10 +1,10 @@
 {
   "backend": {
-    "sha": "a4b5bbaf62564143943c32145b79c63f6f41e897",
-    "ref": "v2.1.0"
+    "sha": "9ee8efff868ca5b3f2f72ef7dd756c5027408a64",
+    "ref": "v2.1.1"
   },
   "frontend": {
-    "sha": "3ece0d2447ba616f44cdae18558f2c8e047a0932",
-    "ref": "v2.1.0"
+    "sha": "1782d6d73ab3e425af3cd1dad8929e3aa598a6c0",
+    "ref": "v2.2.0"
   }
 }
