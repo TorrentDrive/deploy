@@ -1,23 +1,22 @@
 name: Build Combined TorrentDrive Image
 
 on:
-  # Pushes to this repo built nothing at all. The installer, entrypoint,
-  # supervisord config and Dockerfile all live here, so a change to any of them
-  # only reached :latest if backend or frontend happened to push afterwards.
   push:
     branches: [main]
   pull_request:
     branches: [main]
+  repository_dispatch:
+    types: [build-combined]
   workflow_dispatch:
     inputs:
       backend_ref:
-        description: "Backend branch/tag/SHA to build"
+        description: "Backend branch/tag/SHA to build (defaults to components.lock.json)"
         required: false
-        default: "main"
+        default: ""
       frontend_ref:
-        description: "Frontend branch/tag/SHA to build"
+        description: "Frontend branch/tag/SHA to build (defaults to components.lock.json)"
         required: false
-        default: "main"
+        default: ""
 
 concurrency:
   # Scoped by ref so a pull request build cannot cancel the main build.
@@ -33,49 +32,118 @@ jobs:
   # would not prove it harder.
   smoke:
     name: Smoke test
+    if: github.event_name != 'push' || !startsWith(github.event.head_commit.message, 'chore(release):')
     runs-on: ubuntu-latest
+    outputs:
+      backend_sha: ${{ steps.refs.outputs.backend_sha }}
+      backend_ref: ${{ steps.refs.outputs.backend_ref }}
+      frontend_sha: ${{ steps.refs.outputs.frontend_sha }}
+      frontend_ref: ${{ steps.refs.outputs.frontend_ref }}
+      version: ${{ steps.refs.outputs.version }}
+      major_minor: ${{ steps.refs.outputs.major_minor }}
     steps:
       - name: Checkout deploy repo
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
-      - name: Determine refs
+      - name: Determine refs and next version
         id: refs
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
-          # Pinned in components.lock.json, not taken from "main".
-          #
-          # This used to check out backend@main and frontend@main at the moment
-          # the build was triggered, so a released image could never be rebuilt:
-          # the tag recorded the two SHAs, but "main" had already moved. Two
-          # dispatches racing each other produced different images from one
-          # trigger.
-          #
-          # A workflow_dispatch input still overrides, for testing an unreleased
-          # combination by hand.
-          backend_ref="${{ github.event.inputs.backend_ref }}"
-          frontend_ref="${{ github.event.inputs.frontend_ref }}"
-          if [ -z "$backend_ref" ]; then backend_ref=$(jq -r '.backend.sha' components.lock.json); fi
-          if [ -z "$frontend_ref" ]; then frontend_ref=$(jq -r '.frontend.sha' components.lock.json); fi
-          echo "backend  -> ${backend_ref}"
-          echo "frontend -> ${frontend_ref}"
-          echo "backend_ref=${backend_ref}" >> "$GITHUB_OUTPUT"
-          echo "frontend_ref=${frontend_ref}" >> "$GITHUB_OUTPUT"
+
+          backend_sha=$(jq -r '.backend.sha' components.lock.json)
+          backend_ref=$(jq -r '.backend.ref' components.lock.json)
+          frontend_sha=$(jq -r '.frontend.sha' components.lock.json)
+          frontend_ref=$(jq -r '.frontend.ref' components.lock.json)
+
+          if [ "${{ github.event_name }}" = "repository_dispatch" ]; then
+            repo="${{ github.event.client_payload.repository }}"
+            sha="${{ github.event.client_payload.sha }}"
+            ref="${{ github.event.client_payload.ref }}"
+            component="${repo##*/}"
+
+            if [ -z "$ref" ]; then
+              ref=$(gh api "repos/${repo}/tags" --jq \
+                "[.[] | select(.commit.sha == \"${sha}\")] | .[0].name // empty" 2>/dev/null || true)
+              [ -z "$ref" ] && ref="main"
+            fi
+
+            case "$component" in
+              backend)
+                backend_sha="$sha"
+                backend_ref="$ref"
+                ;;
+              frontend)
+                frontend_sha="$sha"
+                frontend_ref="$ref"
+                ;;
+              *)
+                echo "::warning::Unknown component '${component}' in repository_dispatch payload; using components.lock.json"
+                ;;
+            esac
+          elif [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            input_backend="${{ github.event.inputs.backend_ref }}"
+            input_frontend="${{ github.event.inputs.frontend_ref }}"
+            if [ -n "$input_backend" ]; then
+              backend_ref="$input_backend"
+              backend_sha=$(gh api "repos/TorrentDrive/backend/commits/${input_backend}" --jq .sha)
+            fi
+            if [ -n "$input_frontend" ]; then
+              frontend_ref="$input_frontend"
+              frontend_sha=$(gh api "repos/TorrentDrive/frontend/commits/${input_frontend}" --jq .sha)
+            fi
+          fi
+
+          # Compute next SemVer version
+          base_ver=$(tr -d '[:space:]' < VERSION)
+          latest_tag=$(git describe --tags --abbrev=0 --match "v[0-9]*" 2>/dev/null || echo "")
+
+          if [ -z "$latest_tag" ] || ! git rev-parse -q --verify "refs/tags/v${base_ver}" >/dev/null 2>&1; then
+            next_ver="$base_ver"
+          else
+            tag_ver="${latest_tag#v}"
+            IFS='.' read -r major minor patch <<< "$tag_ver"
+            commits=$(git log "${latest_tag}..HEAD" --pretty=format:"%s" 2>/dev/null || echo "")
+            if echo "$commits" | grep -qE '^[a-z]+(\([^)]+\))?!:|BREAKING CHANGE'; then
+              major=$((major + 1)); minor=0; patch=0
+            elif echo "$commits" | grep -qE '^feat(\([^)]+\))?:'; then
+              minor=$((minor + 1)); patch=0
+            else
+              patch=$((patch + 1))
+            fi
+            next_ver="${major}.${minor}.${patch}"
+          fi
+          major_minor="${next_ver%.*}"
+
+          echo "backend  -> ${backend_ref} (${backend_sha})"
+          echo "frontend -> ${frontend_ref} (${frontend_sha})"
+          echo "version  -> ${next_ver} (${major_minor})"
+
+          {
+            echo "backend_sha=${backend_sha}"
+            echo "backend_ref=${backend_ref}"
+            echo "frontend_sha=${frontend_sha}"
+            echo "frontend_ref=${frontend_ref}"
+            echo "version=${next_ver}"
+            echo "major_minor=${major_minor}"
+          } >> "$GITHUB_OUTPUT"
 
       - name: Checkout backend
         uses: actions/checkout@v4
         with:
           repository: TorrentDrive/backend
-          ref: ${{ steps.refs.outputs.backend_ref }}
+          ref: ${{ steps.refs.outputs.backend_sha }}
           path: backend
-          token: ${{ secrets.DEPLOY_PAT }}
 
       - name: Checkout frontend
         uses: actions/checkout@v4
         with:
           repository: TorrentDrive/frontend
-          ref: ${{ steps.refs.outputs.frontend_ref }}
+          ref: ${{ steps.refs.outputs.frontend_sha }}
           path: frontend
-          token: ${{ secrets.DEPLOY_PAT }}
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -96,14 +164,8 @@ jobs:
         run: bash .github/scripts/smoke-test.sh
 
   # Each architecture builds on a runner of that architecture.
-  #
-  # This was previously one job emulating arm64 through QEMU. That build ran for
-  # 3 hours 41 minutes without finishing and was heading for the 6-hour job
-  # timeout: emulating a .NET runtime install, a Node build, PostgreSQL, Grafana
-  # and Prometheus is far past what QEMU is reasonable for.
-  #
-  # ubuntu-24.04-arm is free for public repositories, so arm64 now builds
-  # natively and the two architectures run in parallel.
+  # ubuntu-24.04-arm is free for public repositories, so arm64 builds natively
+  # and the two architectures run in parallel.
   build:
     name: Build ${{ matrix.arch }}
     needs: smoke
@@ -131,44 +193,19 @@ jobs:
         run: |
           echo "name=ghcr.io/$(echo '${{ github.repository_owner }}' | tr '[:upper:]' '[:lower:]')/torrentdrive" >> "$GITHUB_OUTPUT"
 
-      - name: Determine refs
-        id: refs
-        run: |
-          set -euo pipefail
-          # Pinned in components.lock.json, not taken from "main".
-          #
-          # This used to check out backend@main and frontend@main at the moment
-          # the build was triggered, so a released image could never be rebuilt:
-          # the tag recorded the two SHAs, but "main" had already moved. Two
-          # dispatches racing each other produced different images from one
-          # trigger.
-          #
-          # A workflow_dispatch input still overrides, for testing an unreleased
-          # combination by hand.
-          backend_ref="${{ github.event.inputs.backend_ref }}"
-          frontend_ref="${{ github.event.inputs.frontend_ref }}"
-          if [ -z "$backend_ref" ]; then backend_ref=$(jq -r '.backend.sha' components.lock.json); fi
-          if [ -z "$frontend_ref" ]; then frontend_ref=$(jq -r '.frontend.sha' components.lock.json); fi
-          echo "backend  -> ${backend_ref}"
-          echo "frontend -> ${frontend_ref}"
-          echo "backend_ref=${backend_ref}" >> "$GITHUB_OUTPUT"
-          echo "frontend_ref=${frontend_ref}" >> "$GITHUB_OUTPUT"
-
       - name: Checkout backend
         uses: actions/checkout@v4
         with:
           repository: TorrentDrive/backend
-          ref: ${{ steps.refs.outputs.backend_ref }}
+          ref: ${{ needs.smoke.outputs.backend_sha }}
           path: backend
-          token: ${{ secrets.DEPLOY_PAT }}
 
       - name: Checkout frontend
         uses: actions/checkout@v4
         with:
           repository: TorrentDrive/frontend
-          ref: ${{ steps.refs.outputs.frontend_ref }}
+          ref: ${{ needs.smoke.outputs.frontend_sha }}
           path: frontend
-          token: ${{ secrets.DEPLOY_PAT }}
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -181,9 +218,9 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      # Pushed by digest with no tag. The merge job assembles both digests into
-      # one manifest list and puts the tags on that, so a tag never points at a
-      # single architecture.
+      # Pushed by digest with no tag. The release job assembles both digests
+      # into one manifest list and puts the tags on that, so a tag never points
+      # at a single architecture.
       - name: Build and push by digest
         id: build
         uses: docker/build-push-action@v5
@@ -212,13 +249,13 @@ jobs:
           if-no-files-found: error
           retention-days: 1
 
-  merge:
-    name: Publish manifest
-    needs: build
+  release:
+    name: Publish manifest and release
+    needs: [smoke, build]
     if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     permissions:
-      contents: read
+      contents: write
       packages: write
     steps:
       - name: Download the digests
@@ -233,8 +270,8 @@ jobs:
         run: |
           echo "name=ghcr.io/$(echo '${{ github.repository_owner }}' | tr '[:upper:]' '[:lower:]')/torrentdrive" >> "$GITHUB_OUTPUT"
 
-      - name: Generate version tag
-        id: version
+      - name: Generate CalVer tag
+        id: calver
         run: |
           set -euo pipefail
           DATE_TAG=$(date +'%Y.%m.%d')
@@ -256,7 +293,9 @@ jobs:
         run: |
           set -euo pipefail
           image="${{ steps.image.outputs.name }}"
-          tag="${{ steps.version.outputs.full_tag }}"
+          version="${{ needs.smoke.outputs.version }}"
+          major_minor="${{ needs.smoke.outputs.major_minor }}"
+          calver_tag="${{ steps.calver.outputs.full_tag }}"
 
           refs=""
           for digest in *; do
@@ -266,7 +305,69 @@ jobs:
 
           docker buildx imagetools create \
             --tag "${image}:latest" \
-            --tag "${image}:${tag}" \
+            --tag "${image}:${version}" \
+            --tag "${image}:${major_minor}" \
+            --tag "${image}:${calver_tag}" \
             ${refs}
 
           docker buildx imagetools inspect "${image}:latest"
+
+      - name: Checkout deploy repo for release
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Commit lockfile, tag, and create GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          version="${{ needs.smoke.outputs.version }}"
+          backend_sha="${{ needs.smoke.outputs.backend_sha }}"
+          backend_ref="${{ needs.smoke.outputs.backend_ref }}"
+          frontend_sha="${{ needs.smoke.outputs.frontend_sha }}"
+          frontend_ref="${{ needs.smoke.outputs.frontend_ref }}"
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          jq --arg bs "$backend_sha" --arg br "$backend_ref" \
+             --arg fs "$frontend_sha" --arg fr "$frontend_ref" \
+             '.backend.sha = $bs | .backend.ref = $br | .frontend.sha = $fs | .frontend.ref = $fr' \
+             components.lock.json > components.lock.json.tmp
+          mv components.lock.json.tmp components.lock.json
+
+          echo "${version}" > VERSION
+
+          git add components.lock.json VERSION
+          if ! git diff --cached --quiet; then
+            git commit -m "chore(release): v${version} [skip ci]"
+            git pull --rebase origin main
+            git push origin HEAD:main
+          fi
+
+          if ! git rev-parse -q --verify "refs/tags/v${version}" >/dev/null 2>&1; then
+            git tag -a "v${version}" -m "Release v${version}"
+            git push origin "v${version}"
+          fi
+
+          notes=$(cat <<EOF
+          ## Combined Image Release v${version}
+
+          ### Images
+          - \`ghcr.io/torrentdrive/torrentdrive:${version}\`
+          - \`ghcr.io/torrentdrive/torrentdrive:${{ needs.smoke.outputs.major_minor }}\`
+          - \`ghcr.io/torrentdrive/torrentdrive:latest\`
+
+          ### Pinned Components
+          - **backend**: \`${backend_ref}\` ([\`${backend_sha:0:8}\`](https://github.com/TorrentDrive/backend/commit/${backend_sha}))
+          - **frontend**: \`${frontend_ref}\` ([\`${frontend_sha:0:8}\`](https://github.com/TorrentDrive/frontend/commit/${frontend_sha}))
+          EOF
+          )
+
+          if ! gh release view "v${version}" >/dev/null 2>&1; then
+            gh release create "v${version}" \
+              --title "v${version}" \
+              --notes "$notes"
+          fi

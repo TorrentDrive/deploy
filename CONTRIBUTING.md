@@ -4,13 +4,14 @@ Thank you for your interest in contributing to TorrentDrive. This document provi
 
 ## Repository Structure
 
-TorrentDrive is split across three repositories:
+TorrentDrive is split across four repositories:
 
 | Repository | Purpose |
 |------------|---------|
 | [TorrentDrive/backend](https://github.com/TorrentDrive/backend) | .NET 9.0 API and background workers |
-| [TorrentDrive/frontend](https://github.com/TorrentDrive/frontend) | Next.js 15 web application |
+| [TorrentDrive/frontend](https://github.com/TorrentDrive/frontend) | Next.js 16 web application |
 | [TorrentDrive/deploy](https://github.com/TorrentDrive/deploy) | Dockerfile, CI/CD, deployment scripts (this repo) |
+| [TorrentDrive/website](https://github.com/TorrentDrive/website) | Documentation site (`tc.gitnasr.com/docs`) |
 
 ## How to Contribute
 
@@ -25,17 +26,17 @@ TorrentDrive is split across three repositories:
 1. Fork the relevant repository
 2. Create a feature branch from `main`
    ```bash
-   git checkout -b feature/your-feature-name
+   git checkout -b feat/your-feature-name
    ```
 3. Make your changes
 4. Test locally
-5. Submit a pull request to `main`
+5. Submit a pull request to `main` using a Conventional Commit title (`feat: ...`, `fix: ...`, `docs: ...`)
 
 ### Branch Naming
 
 | Prefix | Purpose |
 |--------|---------|
-| `feature/` | New functionality |
+| `feat/` | New functionality |
 | `fix/` | Bug fixes |
 | `docs/` | Documentation changes |
 | `refactor/` | Code restructuring |
@@ -59,11 +60,11 @@ Requires: .NET 9.0 SDK, Docker
 git clone https://github.com/TorrentDrive/frontend.git
 cd frontend
 cp .env.example .env.local
-yarn install
-yarn dev
+npm ci
+npm run dev
 ```
 
-Requires: Node.js 20+, yarn
+Requires: Node.js 22+, npm
 
 ### Deploy Repo
 
@@ -83,9 +84,11 @@ docker build -t torrentdrive-test .
 
 ## Build & Release Process
 
-Merging to `main` in any of the three repos triggers the deploy repo to build and push the
-combined image. Details are on the
-[Architecture](https://tc.gitnasr.com/docs) wiki page.
+Every repository releases automatically when changes land on `main`:
+
+1. Merging to `main` in `backend` or `frontend` runs CI, computes the next SemVer version from Conventional Commits, publishes a GitHub Release, builds and pushes component Docker images, and sends a `repository_dispatch` (`build-combined`) to `deploy`.
+2. `deploy` runs the smoke test and multi-arch build (`amd64` + `arm64`), publishes the combined manifest (`ghcr.io/torrentdrive/torrentdrive`), updates `components.lock.json` and `VERSION` directly on `main`, and creates a matching GitHub Release.
+3. Details are on the [Architecture](https://tc.gitnasr.com/docs) documentation page.
 
 Use pull requests rather than pushing to `main` directly.
 

@@ -57,7 +57,7 @@ services:
     profiles: ["bundled-db"]
 
   api:
-    image: ghcr.io/torrentdrive/backend/api:${TORRENTDRIVE_VERSION:-latest}
+    image: ghcr.io/torrentdrive/backend/api:${TORRENTDRIVE_BACKEND_VERSION:-${TORRENTDRIVE_VERSION:-latest}}
     restart: unless-stopped
     environment:
       <<: *backend-env
@@ -74,7 +74,7 @@ services:
       start_period: 90s
 
   web:
-    image: ghcr.io/torrentdrive/frontend/web:${TORRENTDRIVE_VERSION:-latest}
+    image: ghcr.io/torrentdrive/frontend/web:${TORRENTDRIVE_FRONTEND_VERSION:-${TORRENTDRIVE_VERSION:-latest}}
     restart: unless-stopped
     environment:
       # Resolved per request by the frontend's proxy route, so one image works
@@ -89,7 +89,7 @@ services:
         condition: service_healthy
 
   torrent-worker:
-    image: ghcr.io/torrentdrive/backend/worker:${TORRENTDRIVE_VERSION:-latest}
+    image: ghcr.io/torrentdrive/backend/worker:${TORRENTDRIVE_BACKEND_VERSION:-${TORRENTDRIVE_VERSION:-latest}}
     restart: unless-stopped
     environment: *backend-env
     volumes:
@@ -99,7 +99,7 @@ services:
         condition: service_healthy
 
   gdrive-worker:
-    image: ghcr.io/torrentdrive/backend/gdrive-worker:${TORRENTDRIVE_VERSION:-latest}
+    image: ghcr.io/torrentdrive/backend/gdrive-worker:${TORRENTDRIVE_BACKEND_VERSION:-${TORRENTDRIVE_VERSION:-latest}}
     restart: unless-stopped
     environment: *backend-env
     volumes:
@@ -109,7 +109,7 @@ services:
         condition: service_healthy
 
   s3-worker:
-    image: ghcr.io/torrentdrive/backend/s3-worker:${TORRENTDRIVE_VERSION:-latest}
+    image: ghcr.io/torrentdrive/backend/s3-worker:${TORRENTDRIVE_BACKEND_VERSION:-${TORRENTDRIVE_VERSION:-latest}}
     restart: unless-stopped
     environment: *backend-env
     volumes:
