@@ -41,6 +41,7 @@ jobs:
       frontend_ref: ${{ steps.refs.outputs.frontend_ref }}
       version: ${{ steps.refs.outputs.version }}
       major_minor: ${{ steps.refs.outputs.major_minor }}
+      should_release: ${{ steps.refs.outputs.should_release }}
     steps:
       - name: Checkout deploy repo
         uses: actions/checkout@v4
@@ -68,6 +69,16 @@ jobs:
             echo "${sha}:${ref}"
           }
 
+          should_release="true"
+          if [ "${{ github.event_name }}" = "push" ]; then
+            head_subj=$(git log -1 --format="%s")
+            changed_non_docs=$(git diff --name-only HEAD~1..HEAD 2>/dev/null | grep -vE '(\.md$|^docs/)' || true)
+            if echo "$head_subj" | grep -qE '^docs(\([^)]+\))?:' || [ -z "$changed_non_docs" ]; then
+              should_release="false"
+            fi
+          fi
+
+          dispatch_bump=""
           if [ "${{ github.event_name }}" = "repository_dispatch" ]; then
             # Always sync both components to their latest main/release commits so
             # concurrent dispatches from backend and frontend never drop an update.
@@ -75,6 +86,7 @@ jobs:
             f_info=$(resolve_latest "TorrentDrive/frontend")
             [ -n "${b_info%%:*}" ] && backend_sha="${b_info%%:*}" && backend_ref="${b_info#*:}"
             [ -n "${f_info%%:*}" ] && frontend_sha="${f_info%%:*}" && frontend_ref="${f_info#*:}"
+            dispatch_bump="${{ github.event.client_payload.bump }}"
           elif [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             input_backend="${{ github.event.inputs.backend_ref }}"
             input_frontend="${{ github.event.inputs.frontend_ref }}"
@@ -97,21 +109,30 @@ jobs:
           else
             tag_ver="${latest_tag#v}"
             IFS='.' read -r major minor patch <<< "$tag_ver"
-            commits=$(git log "${latest_tag}..HEAD" --pretty=format:"%s" 2>/dev/null || echo "")
-            if echo "$commits" | grep -qE '^[a-z]+(\([^)]+\))?!:|BREAKING CHANGE'; then
-              major=$((major + 1)); minor=0; patch=0
-            elif echo "$commits" | grep -qE '^feat(\([^)]+\))?:'; then
-              minor=$((minor + 1)); patch=0
+            if [ -n "$dispatch_bump" ]; then
+              case "$dispatch_bump" in
+                major) major=$((major + 1)); minor=0; patch=0 ;;
+                minor) minor=$((minor + 1)); patch=0 ;;
+                *)     patch=$((patch + 1)) ;;
+              esac
             else
-              patch=$((patch + 1))
+              commits=$(git log "${latest_tag}..HEAD" --pretty=format:"%s" 2>/dev/null || echo "")
+              if echo "$commits" | grep -qE '^[a-z]+(\([^)]+\))?!:|BREAKING CHANGE'; then
+                major=$((major + 1)); minor=0; patch=0
+              elif echo "$commits" | grep -qE '^feat(\([^)]+\))?:'; then
+                minor=$((minor + 1)); patch=0
+              else
+                patch=$((patch + 1))
+              fi
             fi
             next_ver="${major}.${minor}.${patch}"
           fi
           major_minor="${next_ver%.*}"
 
-          echo "backend  -> ${backend_ref} (${backend_sha})"
-          echo "frontend -> ${frontend_ref} (${frontend_sha})"
-          echo "version  -> ${next_ver} (${major_minor})"
+          echo "backend        -> ${backend_ref} (${backend_sha})"
+          echo "frontend       -> ${frontend_ref} (${frontend_sha})"
+          echo "version        -> ${next_ver} (${major_minor})"
+          echo "should_release -> ${should_release}"
 
           {
             echo "backend_sha=${backend_sha}"
@@ -120,9 +141,11 @@ jobs:
             echo "frontend_ref=${frontend_ref}"
             echo "version=${next_ver}"
             echo "major_minor=${major_minor}"
+            echo "should_release=${should_release}"
           } >> "$GITHUB_OUTPUT"
 
       - name: Checkout backend
+        if: github.event_name == 'pull_request' || steps.refs.outputs.should_release == 'true'
         uses: actions/checkout@v4
         with:
           repository: TorrentDrive/backend
@@ -130,6 +153,7 @@ jobs:
           path: backend
 
       - name: Checkout frontend
+        if: github.event_name == 'pull_request' || steps.refs.outputs.should_release == 'true'
         uses: actions/checkout@v4
         with:
           repository: TorrentDrive/frontend
@@ -137,9 +161,11 @@ jobs:
           path: frontend
 
       - name: Set up Docker Buildx
+        if: github.event_name == 'pull_request' || steps.refs.outputs.should_release == 'true'
         uses: docker/setup-buildx-action@v3
 
       - name: Build amd64 image for testing
+        if: github.event_name == 'pull_request' || steps.refs.outputs.should_release == 'true'
         uses: docker/build-push-action@v5
         with:
           context: .
@@ -152,6 +178,7 @@ jobs:
           platforms: linux/amd64
 
       - name: Smoke test - boot with no configuration at all
+        if: github.event_name == 'pull_request' || steps.refs.outputs.should_release == 'true'
         run: bash .github/scripts/smoke-test.sh
 
   # Each architecture builds on a runner of that architecture.
@@ -160,6 +187,7 @@ jobs:
   build:
     name: Build ${{ matrix.arch }}
     needs: smoke
+    if: github.event_name == 'pull_request' || needs.smoke.outputs.should_release == 'true'
     runs-on: ${{ matrix.runner }}
     permissions:
       contents: read
@@ -243,7 +271,7 @@ jobs:
   release:
     name: Publish manifest and release
     needs: [smoke, build]
-    if: github.event_name != 'pull_request'
+    if: github.event_name != 'pull_request' && needs.smoke.outputs.should_release == 'true'
     runs-on: ubuntu-latest
     permissions:
       contents: write
